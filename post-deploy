@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -eo pipefail
+[[ $DOKKU_TRACE ]] && set -x
+
+source "$PLUGIN_AVAILABLE_PATH/haproxy/functions"
+source "$PLUGIN_AVAILABLE_PATH/proxy/functions"
+
+haproxy_post_deploy() {
+  declare desc="build haproxy config to proxy app containers from command line"
+  local trigger="haproxy_post_deploy"
+  local APP="$1" ACTION="$2"
+
+  if [[ "$(get_app_proxy_type "$APP")" == "haproxy" ]]; then
+    add_tcp_ports_from_dockerfile "$APP"
+    haproxy_build_config "$APP"
+    haproxy_reload
+  else
+    if [[ -f "$DOKKU_ROOT/$APP/haproxy.conf" ]]; then
+      rm "$DOKKU_ROOT/$APP/haproxy.conf"
+      haproxy_reload
+    fi
+  fi
+}
+
+haproxy_post_deploy "$@"

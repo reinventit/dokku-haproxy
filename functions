@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+set -eo pipefail
+[[ $DOKKU_TRACE ]] && set -x
+
+source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
+
+add_tcp_ports_from_dockerfile() {
+  declare desc="build haproxy config to proxy app containers from command line"
+  local trigger="haproxy_pre_release_dockerfile"
+  local APP="$1"
+
+  local RAW_TCP_PORTS="$(get_app_raw_tcp_ports "$APP")"
+  local PROXY_PORT_MAP="$(get_app_proxy_port_map "$APP")"
+
+  if [[ -n "$RAW_TCP_PORTS" ]]; then
+    local RAW_TCP_PORT
+    for RAW_TCP_PORT in $RAW_TCP_PORTS; do
+      local ADD_TO_PROXY_PORTS=true
+      for PORT_MAP in $PROXY_PORT_MAP; do
+        local APP_PORT="$(cut -d ':' -f3 <<<"$PORT_MAP")"
+        if [[ "$APP_PORT" == "$RAW_TCP_PORT" ]]; then
+          local ADD_TO_PROXY_PORTS=false
+        fi
+      done
+
+      if [ "$ADD_TO_PROXY_PORTS" = true ]; then
+        dokku_log_info1 "Adding port $RAW_TCP_PORT based on EXPOSED in Dockerfile"
+        local AVAILABLE_TCP_PORT=$(get_available_port)
+        local PROXY_PORT_MAP+="tcp:${AVAILABLE_TCP_PORT}:${RAW_TCP_PORT} "
+      fi
+    done
+    DOKKU_QUIET_OUTPUT=1 config_set --no-restart "$APP" DOKKU_PROXY_PORT_MAP="$PROXY_PORT_MAP"
+  fi
+}
+
+haproxy_build_config() {
+  declare desc="build haproxy config to proxy app containers using sigil"
+  local APP="$1"
+  verify_app_name "$APP"
+  local HAPROXY_TEMPLATE_NAME="haproxy.conf.sigil"
+  local DEFAULT_HAPROXY_TEMPLATE="$PLUGIN_AVAILABLE_PATH/haproxy/templates/$HAPROXY_TEMPLATE_NAME"
+  local HAPROXY_TEMPLATE="$DEFAULT_HAPROXY_TEMPLATE"
+  local DOKKU_APP_LISTENERS="$(plugn trigger network-get-listeners "$APP" | xargs)"
+  local PROXY_PORT_MAP=$(config_get "$APP" DOKKU_PROXY_PORT_MAP)
+  local PROXY_PORT_MAP=$(echo "$PROXY_PORT_MAP" | xargs) # trailing spaces mess up default template
+  local DOKKU_APP_LISTENERS="$(plugn trigger network-get-listeners "$APP" | xargs)"
+  local HAPROXY_BUILD_CONFIG_TMP_WORK_DIR=$(mktemp -d "/tmp/dokku-${FUNCNAME[0]}.XXXX")
+  local HAPROXY_CONF=$(mktemp --tmpdir="${HAPROXY_BUILD_CONFIG_TMP_WORK_DIR}" "haproxy.conf.XXXX")
+  local CUSTOM_HAPROXY_TEMPLATE="$HAPROXY_BUILD_CONFIG_TMP_WORK_DIR/$HAPROXY_TEMPLATE_NAME"
+
+  if [[ -f "$CUSTOM_HAPROXY_TEMPLATE" ]]; then
+    dokku_log_info1 'Overriding default haproxy.conf with detected haproxy.conf.sigil'
+    local HAPROXY_TEMPLATE="$CUSTOM_HAPROXY_TEMPLATE"
+  fi
+  local SIGIL_PARAMS=(-f "$HAPROXY_TEMPLATE" APP="$APP" DOKKU_ROOT="$DOKKU_ROOT"
+    DOKKU_APP_LISTENERS="$DOKKU_APP_LISTENERS"
+    PROXY_PORT_MAP="$PROXY_PORT_MAP")
+
+  dokku_log_info1 "Creating HAProxy configuration"
+  sigil "${SIGIL_PARAMS[@]}" | cat -s >"$HAPROXY_CONF"
+  mv "$HAPROXY_CONF" "$DOKKU_ROOT/$APP/haproxy.conf"
+}
+
+haproxy_reload() {
+  declare desc="reload haproxy"
+  dokku_log_info1 "Reloading HAProxy configuration"
+  config=$(cat <<-END
+global
+  log /dev/log local0
+  log /dev/log local1 notice
+  chroot /var/lib/haproxy
+  user haproxy
+  group haproxy
+  daemon
+
+listen stats
+  bind :9000
+  mode http
+  timeout connect 5000
+  timeout client 50000
+  timeout server 50000
+  stats enable
+  stats hide-version
+  stats realm Haproxy\ Statistics
+  stats uri /
+  stats auth admin:admin
+
+END
+)
+  for d in $DOKKU_ROOT/*; do
+    if [ -d "${d}" ]; then
+      for f in $d/haproxy.conf; do
+        if [ -f "${f}" ]; then
+          config+=$(cat "$f")
+        fi
+      done
+    fi
+  done
+  echo "$config"> /var/lib/dokku-haproxy/haproxy.cfg
+  haproxy_deamon_reload
+}
+
+haproxy_deamon_reload() {
+  case "$DOKKU_DISTRO" in
+    ubuntu)
+      sudo /etc/init.d/haproxy reload
+      ;;
+  esac
+}

@@ -76,9 +76,10 @@ global
 listen stats
   bind :9000
   mode http
-  timeout connect 5000
-  timeout client 50000
-  timeout server 50000
+  timeout connect 5s
+  timeout client 30s
+  timeout server 300s
+  http-request use-service prometheus-exporter if { path /metrics }
   stats enable
   stats hide-version
   stats realm Haproxy\ Statistics

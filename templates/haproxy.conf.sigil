@@ -9,18 +9,18 @@
     mode tcp
     log global
     option tcplog
-    timeout connect 5000
-    timeout client 50000
-    timeout server 50000
-    maxconn 512000
+    timeout connect 5s
+    timeout client 30s
+    timeout server 300s
+    maxconn 1024
     default_backend {{ $.APP }}-{{ $listen_port }}-{{ $upstream_port }}
 
   backend {{ $.APP }}-{{ $listen_port }}-{{ $upstream_port }}
     mode tcp
     option tcplog
     balance roundrobin
-    timeout connect 3000
-    timeout server 300000
+    timeout connect 30s
+    timeout server 300s
   {{ range $index, $listeners := $.DOKKU_APP_LISTENERS | split " " }}
   {{ $listener_list := $listeners | split ":" }}
   {{ $listener_ip := index $listener_list 0 }}

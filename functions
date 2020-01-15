@@ -61,6 +61,17 @@ haproxy_build_config() {
   mv "$HAPROXY_CONF" "$DOKKU_ROOT/$APP/haproxy.conf"
 }
 
+haproxy_delete_config() {
+  declare desc="delete haproxy config"
+  local APP="$1"
+  verify_app_name "$APP"
+
+  if [[ -f "$DOKKU_ROOT/$APP/haproxy.conf" ]]; then
+    dokku_log_info1 "Removing HAProxy configuration"
+    rm "$DOKKU_ROOT/$APP/haproxy.conf"
+  fi
+}
+
 haproxy_reload() {
   declare desc="reload haproxy"
   dokku_log_info1 "Reloading HAProxy configuration"

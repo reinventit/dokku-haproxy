@@ -14,11 +14,6 @@ haproxy_proxy_enable() {
     add_tcp_ports_from_dockerfile "$APP"
     haproxy_build_config "$APP"
     haproxy_reload
-  else
-    if [[ -f "$DOKKU_ROOT/$APP/haproxy.conf" ]]; then
-      rm "$DOKKU_ROOT/$APP/haproxy.conf"
-      haproxy_reload
-    fi
   fi
 }
 

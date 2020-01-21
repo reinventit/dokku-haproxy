@@ -83,11 +83,6 @@ global
   user haproxy
   group haproxy
   daemon
-  stats socket /tmp/haproxy_stats
-  server-state-file /var/lib/haproxy/server-state
-
-defaults
-  load-server-state-from-file global
 
 listen stats
   bind :9000
@@ -120,8 +115,7 @@ END
 haproxy_deamon_reload() {
   case "$DOKKU_DISTRO" in
     ubuntu)
-      sudo socat stdio /tmp/haproxy_stats  | sudo tee /var/lib/haproxy/server-state > /dev/null
-      sudo /bin/systemctl reload-or-restart haproxy
+      sudo /etc/init.d/haproxy reload
       ;;
   esac
 }

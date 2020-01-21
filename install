@@ -7,11 +7,11 @@ source "$PLUGIN_AVAILABLE_PATH/haproxy/functions"
 # install haproxy
 sudo add-apt-repository -y ppa:vbernat/haproxy-2.0
 sudo apt-get update
-sudo apt-get -y install haproxy=2.0.\* socat
+sudo apt-get -y install haproxy=2.0.\*
 
 # give access
 sudo cat<<EOF > /etc/sudoers.d/dokku-haproxy
-%dokku ALL=(ALL) NOPASSWD:/bin/systemctl reload-or-restart haproxy,/bin/systemctl start haproxy,sudo /usr/bin/socat stdio /tmp/haproxy_stats, /usr/bin/tee /var/lib/haproxy/server-state
+%dokku ALL=(ALL) NOPASSWD:/etc/init.d/haproxy start, /etc/init.d/haproxy reload
 EOF
 
 chmod 0440 /etc/sudoers.d/dokku-haproxy
@@ -27,7 +27,7 @@ chown dokku:dokku /var/lib/dokku-haproxy/*
 
 case "$DOKKU_DISTRO" in
   ubuntu)
-    sudo /bin/systemctl start haproxy
+    sudo /etc/init.d/haproxy start
     ;;
 esac
 

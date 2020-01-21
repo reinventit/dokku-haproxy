@@ -11,7 +11,7 @@ sudo apt-get -y install haproxy=2.0.\* socat
 
 # give access
 sudo cat<<EOF > /etc/sudoers.d/dokku-haproxy
-%dokku ALL=(ALL) NOPASSWD:/etc/init.d/haproxy start, /etc/init.d/haproxy reload
+%dokku ALL=(ALL) NOPASSWD:/bin/systemctl reload-or-restart haproxy,/bin/systemctl start haproxy
 EOF
 
 chmod 0440 /etc/sudoers.d/dokku-haproxy
@@ -27,7 +27,7 @@ chown dokku:dokku /var/lib/dokku-haproxy/*
 
 case "$DOKKU_DISTRO" in
   ubuntu)
-    sudo /etc/init.d/haproxy start
+    sudo /bin/systemctl start haproxy
     ;;
 esac
 

@@ -120,8 +120,8 @@ END
 haproxy_deamon_reload() {
   case "$DOKKU_DISTRO" in
     ubuntu)
-      echo "show servers state" | sudo socat stdio /tmp/haproxy_stats  | sudo tee /var/lib/haproxy/server-state
-      sudo systemctl reload-or-restart haproxy
+      echo "show servers state" | sudo socat stdio /tmp/haproxy_stats  | sudo tee /var/lib/haproxy/server-state > /dev/null
+      sudo /bin/systemctl reload-or-restart haproxy
       ;;
   esac
 }

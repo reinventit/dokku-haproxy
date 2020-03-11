@@ -40,10 +40,9 @@ haproxy_build_config() {
   local HAPROXY_TEMPLATE_NAME="haproxy.conf.sigil"
   local DEFAULT_HAPROXY_TEMPLATE="$PLUGIN_AVAILABLE_PATH/haproxy/templates/$HAPROXY_TEMPLATE_NAME"
   local HAPROXY_TEMPLATE="$DEFAULT_HAPROXY_TEMPLATE"
-  local DOKKU_APP_LISTENERS="$(plugn trigger network-get-listeners "$APP" | xargs)"
   local PROXY_PORT_MAP=$(config_get "$APP" DOKKU_PROXY_PORT_MAP)
   local PROXY_PORT_MAP=$(echo "$PROXY_PORT_MAP" | xargs) # trailing spaces mess up default template
-  local DOKKU_APP_LISTENERS="$(plugn trigger network-get-listeners "$APP" | xargs)"
+  local DOKKU_APP_LISTENERS="$(plugn trigger network-get-listeners "$APP" "web" | xargs)"
   local HAPROXY_BUILD_CONFIG_TMP_WORK_DIR=$(mktemp -d "/tmp/dokku-${FUNCNAME[0]}.XXXX")
   local HAPROXY_CONF=$(mktemp --tmpdir="${HAPROXY_BUILD_CONFIG_TMP_WORK_DIR}" "haproxy.conf.XXXX")
   local CUSTOM_HAPROXY_TEMPLATE="$HAPROXY_BUILD_CONFIG_TMP_WORK_DIR/$HAPROXY_TEMPLATE_NAME"
